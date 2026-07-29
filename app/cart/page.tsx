@@ -80,8 +80,17 @@ export default function CartPage() {
         return;
       }
       const order = await res.json();
+
+      // 결제(mock) - 실제 PG 연동 전까지는 항상 성공 처리
+      const payRes = await fetch(`/api/orders/${order.id}/pay`, { method: "POST" });
+      if (!payRes.ok) {
+        setError("결제에 실패했습니다. 다시 시도해주세요.");
+        return;
+      }
+      const paidOrder = await payRes.json();
+
       await fetch("/api/cart", { method: "DELETE" });
-      setOrderResult({ id: order.id, totalPrice: order.totalPrice });
+      setOrderResult({ id: paidOrder.id, totalPrice: paidOrder.totalPrice });
       loadCart();
     } finally {
       setPlacing(false);
@@ -95,7 +104,7 @@ export default function CartPage() {
   if (orderResult) {
     return (
       <main className="max-w-3xl mx-auto p-8">
-        <h1 className="text-2xl font-bold mb-4">주문이 완료되었습니다</h1>
+        <h1 className="text-2xl font-bold mb-4">결제가 완료되었습니다</h1>
         <p className="text-gray-600">
           주문번호 #{orderResult.id} · 결제 금액{" "}
           {orderResult.totalPrice.toLocaleString()}원
