@@ -32,9 +32,17 @@ export default function RootLayout({
           <Link href="/" className="font-bold">
             상품
           </Link>
-          <Link href="/cart" className="text-sm text-gray-600 hover:text-black">
-            장바구니
-          </Link>
+          <div className="flex gap-4">
+            <a
+              href="https://customer.leedohyun.com/mypage"
+              className="text-sm text-gray-600 hover:text-black"
+            >
+              주문내역
+            </a>
+            <Link href="/cart" className="text-sm text-gray-600 hover:text-black">
+              장바구니
+            </Link>
+          </div>
         </header>
         {children}
       </body>
