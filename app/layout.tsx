@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
+import Link from "next/link";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -27,6 +28,14 @@ export default function RootLayout({
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
+        <header className="border-b p-4 flex justify-between items-center max-w-5xl mx-auto">
+          <Link href="/" className="font-bold">
+            상품
+          </Link>
+          <Link href="/cart" className="text-sm text-gray-600 hover:text-black">
+            장바구니
+          </Link>
+        </header>
         {children}
       </body>
     </html>

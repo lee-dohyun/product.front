@@ -17,6 +17,8 @@ export default function ProductDetailPage() {
   const params = useParams<{ id: string }>();
   const [product, setProduct] = useState<ProductDetail | null>(null);
   const [notFound, setNotFound] = useState(false);
+  const [adding, setAdding] = useState(false);
+  const [added, setAdded] = useState(false);
 
   useEffect(() => {
     fetch(`/api/products/${params.id}`)
@@ -30,6 +32,22 @@ export default function ProductDetailPage() {
       .then((data) => data && setProduct(data))
       .catch(() => setNotFound(true));
   }, [params.id]);
+
+  const addToCart = async () => {
+    if (!product) return;
+    setAdding(true);
+    setAdded(false);
+    try {
+      await fetch("/api/cart/items", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ productId: product.id, quantity: 1 }),
+      });
+      setAdded(true);
+    } finally {
+      setAdding(false);
+    }
+  };
 
   if (notFound) {
     return (
@@ -63,6 +81,19 @@ export default function ProductDetailPage() {
       <div className="text-sm text-gray-600 mb-4">
         재고: {product.stockQuantity}개
       </div>
+      <button
+        onClick={addToCart}
+        disabled={adding || product.stockQuantity === 0}
+        className="mb-4 px-4 py-2 bg-black text-white rounded disabled:opacity-50"
+      >
+        {product.stockQuantity === 0
+          ? "품절"
+          : added
+            ? "담았습니다"
+            : adding
+              ? "담는 중..."
+              : "장바구니 담기"}
+      </button>
       {product.description && (
         <p className="whitespace-pre-wrap">{product.description}</p>
       )}
