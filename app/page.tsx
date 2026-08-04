@@ -1,30 +1,40 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { BlueprintCorners, Tag } from "@posselect/ui";
 
 type ProductSummary = {
   id: number;
+  categoryId: number;
   name: string;
   price: number;
   stockQuantity: number;
   thumbnailUrl: string | null;
 };
 
-export default function ProductListPage() {
+function ProductList() {
+  const searchParams = useSearchParams();
+  const category = searchParams.get("category");
+  const q = searchParams.get("q");
+
   const [products, setProducts] = useState<ProductSummary[]>([]);
 
   useEffect(() => {
-    fetch("/api/products")
+    const params = new URLSearchParams();
+    if (category) params.set("categoryId", category);
+    if (q) params.set("q", q);
+    const qs = params.toString();
+    fetch(`/api/products${qs ? `?${qs}` : ""}`)
       .then((res) => (res.ok ? res.json() : []))
       .then(setProducts)
       .catch(() => setProducts([]));
-  }, []);
+  }, [category, q]);
 
   return (
     <main className="max-w-5xl mx-auto p-8">
-      <h1 className="mb-6">상품 목록</h1>
+      <h1 className="mb-6">{q ? `"${q}" 검색 결과` : "상품 목록"}</h1>
       {products.length === 0 ? (
         <p className="text-muted">등록된 상품이 없습니다.</p>
       ) : (
@@ -59,5 +69,13 @@ export default function ProductListPage() {
         </div>
       )}
     </main>
+  );
+}
+
+export default function ProductListPage() {
+  return (
+    <Suspense fallback={null}>
+      <ProductList />
+    </Suspense>
   );
 }

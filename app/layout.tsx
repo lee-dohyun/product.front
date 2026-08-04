@@ -1,6 +1,5 @@
 import type { Metadata } from "next";
-import Link from "next/link";
-import { Nav, Logo } from "@posselect/ui";
+import { Header, Footer, type HeaderCategory } from "@posselect/ui";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -8,20 +7,35 @@ export const metadata: Metadata = {
   description: "PosSelect 상품 목록",
 };
 
-export default function RootLayout({
+async function getCategories(): Promise<HeaderCategory[]> {
+  try {
+    const res = await fetch("https://product.posselect.com/api/categories", {
+      next: { revalidate: 300 },
+    });
+    if (!res.ok) return [];
+    const data: { id: number; name: string }[] = await res.json();
+    return data.map((c) => ({
+      id: c.id,
+      name: c.name,
+      href: `/?category=${c.id}`,
+    }));
+  } catch {
+    return [];
+  }
+}
+
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const categories = await getCategories();
   return (
     <html lang="ko">
       <body>
-        <Nav brand={<Logo size={20} />}>
-          <Link href="/">상품</Link>
-          <a href="https://customer.posselect.com/mypage">주문내역</a>
-          <Link href="/cart">장바구니</Link>
-        </Nav>
+        <Header categories={categories} homeHref="/" searchHref="/" cartApiBase="" />
         {children}
+        <Footer />
       </body>
     </html>
   );
