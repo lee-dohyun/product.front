@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
+import { Button, Figure, Tag } from "@posselect/ui";
 
 type ProductDetail = {
   id: number;
@@ -52,7 +53,7 @@ export default function ProductDetailPage() {
   if (notFound) {
     return (
       <main className="max-w-3xl mx-auto p-8">
-        <p className="text-gray-500">상품을 찾을 수 없습니다.</p>
+        <p className="text-muted">상품을 찾을 수 없습니다.</p>
       </main>
     );
   }
@@ -63,28 +64,28 @@ export default function ProductDetailPage() {
 
   return (
     <main className="max-w-3xl mx-auto p-8">
-      <div className="text-sm text-gray-500 mb-2">{product.category.name}</div>
-      <h1 className="text-2xl font-bold mb-4">{product.name}</h1>
+      <div className="text-sm text-muted mb-2">{product.category.name}</div>
+      <h1 className="mb-4">{product.name}</h1>
       {product.images.length > 0 && (
-        <div className="aspect-video bg-gray-100 rounded mb-4 overflow-hidden">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src={product.images[0].imageUrl}
-            alt={product.name}
-            className="w-full h-full object-cover"
-          />
+        <div className="mb-4">
+          <Figure src={product.images[0].imageUrl} alt={product.name} />
         </div>
       )}
-      <div className="text-xl font-semibold mb-2">
-        {product.price.toLocaleString()}원
+      <h3 className="mb-2">{product.price.toLocaleString()}원</h3>
+      <div className="mb-4">
+        {product.stockQuantity === 0 ? (
+          <Tag variant="danger">품절</Tag>
+        ) : product.stockQuantity <= 5 ? (
+          <Tag variant="warning">재고 {product.stockQuantity}개</Tag>
+        ) : (
+          <Tag variant="success">재고 {product.stockQuantity}개</Tag>
+        )}
       </div>
-      <div className="text-sm text-gray-600 mb-4">
-        재고: {product.stockQuantity}개
-      </div>
-      <button
+      <Button
+        variant="primary"
         onClick={addToCart}
         disabled={adding || product.stockQuantity === 0}
-        className="mb-4 px-4 py-2 bg-black text-white rounded disabled:opacity-50"
+        className="mb-4"
       >
         {product.stockQuantity === 0
           ? "품절"
@@ -93,7 +94,7 @@ export default function ProductDetailPage() {
             : adding
               ? "담는 중..."
               : "장바구니 담기"}
-      </button>
+      </Button>
       {product.description && (
         <p className="whitespace-pre-wrap">{product.description}</p>
       )}

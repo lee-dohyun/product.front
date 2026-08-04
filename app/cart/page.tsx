@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { BlueprintCorners, Button, Field, Input, Table } from "@posselect/ui";
 
 type CartItem = {
   productId: number;
@@ -104,8 +105,8 @@ export default function CartPage() {
   if (orderResult) {
     return (
       <main className="max-w-3xl mx-auto p-8">
-        <h1 className="text-2xl font-bold mb-4">결제가 완료되었습니다</h1>
-        <p className="text-gray-600">
+        <h1 className="mb-4">결제가 완료되었습니다</h1>
+        <p className="text-muted">
           주문번호 #{orderResult.id} · 결제 금액{" "}
           {orderResult.totalPrice.toLocaleString()}원
         </p>
@@ -118,9 +119,9 @@ export default function CartPage() {
 
   return (
     <main className="max-w-3xl mx-auto p-8">
-      <h1 className="text-2xl font-bold mb-6">장바구니</h1>
+      <h1 className="mb-6">장바구니</h1>
       {cart.items.length === 0 ? (
-        <p className="text-gray-500">
+        <p className="text-muted">
           장바구니가 비어 있습니다.{" "}
           <Link href="/" className="underline">
             상품 보러 가기
@@ -128,79 +129,95 @@ export default function CartPage() {
         </p>
       ) : (
         <>
-          <ul className="divide-y">
-            {cart.items.map((item) => (
-              <li key={item.productId} className="py-4 flex items-center gap-4">
-                <div className="w-16 h-16 bg-gray-100 rounded overflow-hidden flex-shrink-0">
-                  {item.thumbnailUrl && (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img
-                      src={item.thumbnailUrl}
-                      alt={item.name}
-                      className="w-full h-full object-cover"
+          <Table>
+            <thead>
+              <tr>
+                <th>상품</th>
+                <th>수량</th>
+                <th>가격</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody>
+              {cart.items.map((item) => (
+                <tr key={item.productId}>
+                  <td>
+                    <div className="flex items-center gap-3">
+                      <div className="w-16 h-16 duotone blueprint overflow-hidden flex-shrink-0">
+                        <BlueprintCorners />
+                        {item.thumbnailUrl && (
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img
+                            src={item.thumbnailUrl}
+                            alt={item.name}
+                            className="w-full h-full object-cover"
+                          />
+                        )}
+                      </div>
+                      <div>{item.name}</div>
+                    </div>
+                  </td>
+                  <td>
+                    <Input
+                      type="number"
+                      min={1}
+                      value={item.quantity}
+                      onChange={(e) =>
+                        updateQuantity(item.productId, Number(e.target.value))
+                      }
+                      className="w-16 text-center"
                     />
-                  )}
-                </div>
-                <div className="flex-1">
-                  <div className="font-medium">{item.name}</div>
-                  <div className="text-sm text-gray-600">
-                    {item.price.toLocaleString()}원
-                  </div>
-                </div>
-                <input
-                  type="number"
-                  min={1}
-                  value={item.quantity}
-                  onChange={(e) =>
-                    updateQuantity(item.productId, Number(e.target.value))
-                  }
-                  className="w-16 border rounded px-2 py-1 text-center"
-                />
-                <button
-                  onClick={() => removeItem(item.productId)}
-                  className="text-sm text-gray-500 hover:text-red-600"
-                >
-                  삭제
-                </button>
-              </li>
-            ))}
-          </ul>
-          <div className="mt-6 text-right text-lg font-semibold">
-            합계: {cart.totalPrice.toLocaleString()}원
+                  </td>
+                  <td>{item.price.toLocaleString()}원</td>
+                  <td>
+                    <Button variant="ghost" onClick={() => removeItem(item.productId)}>
+                      삭제
+                    </Button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </Table>
+          <div className="mt-6 text-right">
+            <h3>합계: {cart.totalPrice.toLocaleString()}원</h3>
           </div>
 
-          <div className="mt-8 border-t pt-6">
-            <h2 className="font-semibold mb-3">주문 정보</h2>
-            <div className="flex flex-col gap-2 mb-4">
-              <input
-                placeholder="받는 분 이름"
-                value={ordererName}
-                onChange={(e) => setOrdererName(e.target.value)}
-                className="border rounded px-3 py-2"
-              />
-              <input
-                placeholder="연락처"
-                value={ordererPhone}
-                onChange={(e) => setOrdererPhone(e.target.value)}
-                className="border rounded px-3 py-2"
-              />
-              <input
-                placeholder="배송 주소"
-                value={shippingAddress}
-                onChange={(e) => setShippingAddress(e.target.value)}
-                className="border rounded px-3 py-2"
-              />
+          <div className="mt-8 pt-6" style={{ borderTop: "1px solid var(--color-divider)" }}>
+            <h4 className="mb-3">주문 정보</h4>
+            <div className="flex flex-col gap-3 mb-4">
+              <Field label="받는 분 이름">
+                <Input
+                  placeholder="받는 분 이름"
+                  value={ordererName}
+                  onChange={(e) => setOrdererName(e.target.value)}
+                />
+              </Field>
+              <Field label="연락처">
+                <Input
+                  placeholder="연락처"
+                  value={ordererPhone}
+                  onChange={(e) => setOrdererPhone(e.target.value)}
+                />
+              </Field>
+              <Field label="배송 주소">
+                <Input
+                  placeholder="배송 주소"
+                  value={shippingAddress}
+                  onChange={(e) => setShippingAddress(e.target.value)}
+                />
+              </Field>
             </div>
-            {error && <p className="text-red-600 text-sm mb-2">{error}</p>}
-            <button
+            {error && <p className="text-sm mb-2" style={{ color: "var(--color-danger)" }}>{error}</p>}
+            <Button
+              variant="primary"
+              block
               onClick={placeOrder}
               disabled={
                 placing || !ordererName || !ordererPhone || !shippingAddress
               }
-              className="w-full px-4 py-3 bg-black text-white rounded disabled:opacity-50"
             >
               {placing ? "주문 처리 중..." : "주문하기"}
-            </button>
+            </Button>
           </div>
         </>
       )}

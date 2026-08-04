@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { BlueprintCorners, Tag } from "@posselect/ui";
 
 type ProductSummary = {
   id: number;
@@ -23,18 +24,20 @@ export default function ProductListPage() {
 
   return (
     <main className="max-w-5xl mx-auto p-8">
-      <h1 className="text-2xl font-bold mb-6">상품 목록</h1>
+      <h1 className="mb-6">상품 목록</h1>
       {products.length === 0 ? (
-        <p className="text-gray-500">등록된 상품이 없습니다.</p>
+        <p className="text-muted">등록된 상품이 없습니다.</p>
       ) : (
         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
           {products.map((product) => (
             <Link
               key={product.id}
               href={`/products/${product.id}`}
-              className="border rounded-lg p-4 hover:shadow-md transition-shadow"
+              className="card blueprint elev-sm"
             >
-              <div className="aspect-square bg-gray-100 rounded mb-2 overflow-hidden">
+              <BlueprintCorners />
+              <div className="duotone blueprint aspect-square overflow-hidden">
+                <BlueprintCorners />
                 {product.thumbnailUrl && (
                   // eslint-disable-next-line @next/next/no-img-element
                   <img
@@ -44,10 +47,13 @@ export default function ProductListPage() {
                   />
                 )}
               </div>
-              <div className="font-medium truncate">{product.name}</div>
-              <div className="text-sm text-gray-600">
-                {product.price.toLocaleString()}원
-              </div>
+              {product.stockQuantity === 0 && (
+                <Tag variant="danger" className="self-start">
+                  품절
+                </Tag>
+              )}
+              <div className="card-title truncate">{product.name}</div>
+              <div className="card-meta">{product.price.toLocaleString()}원</div>
             </Link>
           ))}
         </div>
