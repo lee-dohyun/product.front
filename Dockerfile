@@ -7,7 +7,7 @@ EXPOSE 3000
 FROM base as builder
 WORKDIR /app
 COPY . .
-RUN npm ci
+RUN npm install
 RUN npm run build
 
 
@@ -15,7 +15,7 @@ FROM base as production
 WORKDIR /app
 
 ENV NODE_ENV=production
-RUN npm ci
+RUN npm install
 
 RUN addgroup -g 1001 -S nodejs
 RUN adduser -S nextjs -u 1001
