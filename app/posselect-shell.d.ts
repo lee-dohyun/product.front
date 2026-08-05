@@ -6,7 +6,6 @@ declare module "react" {
   namespace JSX {
     interface IntrinsicElements {
       "posselect-header": React.DetailedHTMLProps<React.HTMLAttributes<HTMLElement>, HTMLElement> & {
-        "home-href"?: string;
         "search-href"?: string;
         "auth-api-base"?: string;
         "cart-api-base"?: string;
