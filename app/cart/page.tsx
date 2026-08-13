@@ -22,11 +22,29 @@ type OrderResult = {
   totalPrice: number;
 };
 
+type SavedAddress = {
+  id: number;
+  label: string | null;
+  recipientName: string;
+  phoneNumber: string;
+  zipCode: string;
+  address1: string;
+  address2: string | null;
+  isDefault: boolean;
+};
+
 export default function CartPage() {
   const [cart, setCart] = useState<Cart | null>(null);
   const [ordererName, setOrdererName] = useState("");
   const [ordererPhone, setOrdererPhone] = useState("");
   const [shippingAddress, setShippingAddress] = useState("");
+  const [structuredAddress, setStructuredAddress] = useState<{
+    zipCode: string;
+    address1: string;
+    address2: string;
+  } | null>(null);
+  const [savedAddresses, setSavedAddresses] = useState<SavedAddress[]>([]);
+  const [selectedAddressId, setSelectedAddressId] = useState<number | "manual">("manual");
   const [placing, setPlacing] = useState(false);
   const [orderResult, setOrderResult] = useState<OrderResult | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -40,7 +58,43 @@ export default function CartPage() {
 
   useEffect(() => {
     loadCart();
+    // 로그인 상태면(도메인 공유 쿠키) 저장된 배송지 목록을 불러온다. 비로그인이면 401 -> 조용히 무시,
+    // 기존처럼 직접 입력하는 폼만 보인다.
+    fetch("/api/auth/addresses", { credentials: "include" })
+      .then((res) => (res.ok ? res.json() : []))
+      .then((addresses: SavedAddress[]) => {
+        setSavedAddresses(addresses);
+        const defaultAddress = addresses.find((a) => a.isDefault);
+        if (defaultAddress) {
+          applySavedAddress(defaultAddress);
+        }
+      })
+      .catch(() => setSavedAddresses([]));
   }, []);
+
+  const applySavedAddress = (address: SavedAddress) => {
+    setSelectedAddressId(address.id);
+    setOrdererName(address.recipientName);
+    setOrdererPhone(address.phoneNumber);
+    setShippingAddress(`(${address.zipCode}) ${address.address1} ${address.address2 ?? ""}`.trim());
+    setStructuredAddress({
+      zipCode: address.zipCode,
+      address1: address.address1,
+      address2: address.address2 ?? "",
+    });
+  };
+
+  const handleAddressSelect = (value: string) => {
+    if (value === "manual") {
+      setSelectedAddressId("manual");
+      setStructuredAddress(null);
+      return;
+    }
+    const address = savedAddresses.find((a) => a.id === Number(value));
+    if (address) {
+      applySavedAddress(address);
+    }
+  };
 
   const updateQuantity = async (productId: number, quantity: number) => {
     await fetch(`/api/cart/items/${productId}`, {
@@ -68,6 +122,13 @@ export default function CartPage() {
           ordererName,
           ordererPhone,
           shippingAddress,
+          ...(structuredAddress && {
+            recipientName: ordererName,
+            recipientPhone: ordererPhone,
+            zipCode: structuredAddress.zipCode,
+            address1: structuredAddress.address1,
+            address2: structuredAddress.address2,
+          }),
           items: cart.items.map((item) => ({
             productId: item.productId,
             productName: item.name,
@@ -184,26 +245,54 @@ export default function CartPage() {
 
           <div className="mt-8 pt-6" style={{ borderTop: "1px solid var(--color-divider)" }}>
             <h4 className="mb-3">주문 정보</h4>
+            {savedAddresses.length > 0 && (
+              <Field label="배송지">
+                <select
+                  className="input"
+                  value={selectedAddressId}
+                  onChange={(e) => handleAddressSelect(e.target.value)}
+                >
+                  {savedAddresses.map((address) => (
+                    <option key={address.id} value={address.id}>
+                      {address.label || "배송지"} · {address.recipientName} ({address.zipCode})
+                    </option>
+                  ))}
+                  <option value="manual">직접 입력</option>
+                </select>
+              </Field>
+            )}
             <div className="flex flex-col gap-3 mb-4">
               <Field label="받는 분 이름">
                 <Input
                   placeholder="받는 분 이름"
                   value={ordererName}
-                  onChange={(e) => setOrdererName(e.target.value)}
+                  onChange={(e) => {
+                    setSelectedAddressId("manual");
+                    setStructuredAddress(null);
+                    setOrdererName(e.target.value);
+                  }}
                 />
               </Field>
               <Field label="연락처">
                 <Input
                   placeholder="연락처"
                   value={ordererPhone}
-                  onChange={(e) => setOrdererPhone(e.target.value)}
+                  onChange={(e) => {
+                    setSelectedAddressId("manual");
+                    setStructuredAddress(null);
+                    setOrdererPhone(e.target.value);
+                  }}
                 />
               </Field>
               <Field label="배송 주소">
                 <Input
                   placeholder="배송 주소"
                   value={shippingAddress}
-                  onChange={(e) => setShippingAddress(e.target.value)}
+                  onChange={(e) => {
+                    setSelectedAddressId("manual");
+                    setStructuredAddress(null);
+                    setShippingAddress(e.target.value);
+                  }}
                 />
               </Field>
             </div>
