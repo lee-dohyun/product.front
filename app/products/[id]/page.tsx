@@ -12,6 +12,7 @@ type ProductDetail = {
   price: number;
   stockQuantity: number;
   images: { id: number; imageUrl: string; sortOrder: number }[];
+  variants: { id: number; sku: string | null; price: number; active: boolean; stockQuantity: number }[];
 };
 
 export default function ProductDetailPage() {
@@ -35,14 +36,16 @@ export default function ProductDetailPage() {
   }, [params.id]);
 
   const addToCart = async () => {
-    if (!product) return;
+    // 옵션 선택 UI는 아직 없음 - 지금은 상품마다 variant가 정확히 1개(옵션 없음)이므로 그걸 담는다.
+    const variant = product?.variants[0];
+    if (!variant) return;
     setAdding(true);
     setAdded(false);
     try {
       await fetch("/api/cart/items", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ productId: product.id, quantity: 1 }),
+        body: JSON.stringify({ variantId: variant.id, quantity: 1 }),
       });
       setAdded(true);
     } finally {

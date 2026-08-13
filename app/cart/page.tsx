@@ -5,6 +5,7 @@ import Link from "next/link";
 import { BlueprintCorners, Button, Field, Input, Table } from "@posselect/ui";
 
 type CartItem = {
+  variantId: number;
   productId: number;
   name: string;
   price: number;
@@ -96,8 +97,8 @@ export default function CartPage() {
     }
   };
 
-  const updateQuantity = async (productId: number, quantity: number) => {
-    await fetch(`/api/cart/items/${productId}`, {
+  const updateQuantity = async (variantId: number, quantity: number) => {
+    await fetch(`/api/cart/items/${variantId}`, {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ quantity }),
@@ -105,8 +106,8 @@ export default function CartPage() {
     loadCart();
   };
 
-  const removeItem = async (productId: number) => {
-    await fetch(`/api/cart/items/${productId}`, { method: "DELETE" });
+  const removeItem = async (variantId: number) => {
+    await fetch(`/api/cart/items/${variantId}`, { method: "DELETE" });
     loadCart();
   };
 
@@ -131,6 +132,7 @@ export default function CartPage() {
           }),
           items: cart.items.map((item) => ({
             productId: item.productId,
+            variantId: item.variantId,
             productName: item.name,
             price: item.price,
             quantity: item.quantity,
@@ -201,7 +203,7 @@ export default function CartPage() {
             </thead>
             <tbody>
               {cart.items.map((item) => (
-                <tr key={item.productId}>
+                <tr key={item.variantId}>
                   <td>
                     <div className="flex items-center gap-3">
                       <div className="w-16 h-16 duotone blueprint overflow-hidden flex-shrink-0">
@@ -224,14 +226,14 @@ export default function CartPage() {
                       min={1}
                       value={item.quantity}
                       onChange={(e) =>
-                        updateQuantity(item.productId, Number(e.target.value))
+                        updateQuantity(item.variantId, Number(e.target.value))
                       }
                       className="w-16 text-center"
                     />
                   </td>
                   <td>{item.price.toLocaleString()}원</td>
                   <td>
-                    <Button variant="ghost" onClick={() => removeItem(item.productId)}>
+                    <Button variant="ghost" onClick={() => removeItem(item.variantId)}>
                       삭제
                     </Button>
                   </td>
