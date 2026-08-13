@@ -54,4 +54,4 @@ jobs:
       - name: Wait for rollout
         run: |
           /usr/local/bin/kubectl --kubeconfig=/home/leedohyun/.kube-ci/product-front-deployer.kubeconfig \
-            rollout status deployment/product-front -n customer --timeout=120s
+            rollout status deployment/product-front -n customer --timeout=300s
