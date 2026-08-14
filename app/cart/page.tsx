@@ -145,8 +145,13 @@ export default function CartPage() {
       }
       const order = await res.json();
 
-      // 결제(mock) - 실제 PG 연동 전까지는 항상 성공 처리
-      const payRes = await fetch(`/api/orders/${order.id}/pay`, { method: "POST" });
+      // 비로그인(게스트) 주문은 계정으로 소유자를 확인할 수 없어서, 생성 응답으로 받은 토큰을
+      // 되돌려 보내야 결제가 허용된다. 로그인 주문은 게이트웨이가 넣어주는 신원 헤더로 확인되므로
+      // 이 값이 없다(order.api가 발급하지 않음).
+      const payRes = await fetch(`/api/orders/${order.id}/pay`, {
+        method: "POST",
+        headers: order.guestToken ? { "X-Order-Guest-Token": order.guestToken } : {},
+      });
       if (!payRes.ok) {
         setError("결제에 실패했습니다. 다시 시도해주세요.");
         return;
