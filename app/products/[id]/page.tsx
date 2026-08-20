@@ -16,6 +16,8 @@ type Variant = {
   optionValues: VariantOptionValue[];
 };
 
+type WishlistItem = { id: number; productId: number; productName: string };
+
 type ProductDetail = {
   id: number;
   category: { id: number; name: string };
@@ -51,6 +53,9 @@ export default function ProductDetailPage() {
   const [adding, setAdding] = useState(false);
   const [added, setAdded] = useState(false);
 
+  const [isWishlisted, setIsWishlisted] = useState(false);
+  const [togglingWishlist, setTogglingWishlist] = useState(false);
+
   useEffect(() => {
     fetch(`/api/products/${params.id}`)
       .then((res) => {
@@ -63,7 +68,6 @@ export default function ProductDetailPage() {
       .then((data: ProductDetail | null) => {
         if (!data) return;
         setProduct(data);
-        // 첫 variant의 옵션 조합을 기본 선택값으로 - 항상 실재하는 조합에서 출발한다.
         const first = data.variants[0];
         if (first) {
           const initial: Record<number, number> = {};
@@ -85,6 +89,15 @@ export default function ProductDetailPage() {
         });
       })
       .catch(() => setNotFound(true));
+
+    // Fetch wishlist status
+    fetch("/api/wishlists", { credentials: "include" })
+      .then((res) => (res.ok ? res.json() : []))
+      .then((wishlists: WishlistItem[]) => {
+        const wishlisted = wishlists.some((item) => String(item.productId) === params.id);
+        setIsWishlisted(wishlisted);
+      })
+      .catch(() => setIsWishlisted(false));
   }, [params.id]);
 
   const selectedVariant = useMemo(() => {
@@ -105,6 +118,25 @@ export default function ProductDetailPage() {
       setAdded(true);
     } finally {
       setAdding(false);
+    }
+  };
+
+  const toggleWishlist = async () => {
+    if (!product || togglingWishlist) return;
+    setTogglingWishlist(true);
+    try {
+      if (isWishlisted) {
+        await fetch(`/api/wishlists/${product.id}`, { method: "DELETE", credentials: "include" });
+        setIsWishlisted(false);
+      } else {
+        await fetch(`/api/wishlists?productId=${product.id}`, { method: "POST", credentials: "include" });
+        setIsWishlisted(true);
+      }
+    } catch (e) {
+      console.error(e);
+      alert("찜하기 처리에 실패했습니다. 로그인 상태를 확인해주세요.");
+    } finally {
+      setTogglingWishlist(false);
     }
   };
 
@@ -168,15 +200,27 @@ export default function ProductDetailPage() {
           <Tag variant="success">재고 {displayStock}개</Tag>
         )}
       </div>
-      <Button variant="primary" onClick={addToCart} disabled={adding || soldOut} className="mb-4">
-        {!selectedVariant || displayStock === 0
-          ? "품절"
-          : added
-            ? "담았습니다"
-            : adding
-              ? "담는 중..."
-              : "장바구니 담기"}
-      </Button>
+      
+      <div className="flex gap-2 mb-4">
+        <Button variant="primary" onClick={addToCart} disabled={adding || soldOut} style={{ flex: 1 }}>
+          {!selectedVariant || displayStock === 0
+            ? "품절"
+            : added
+              ? "담았습니다"
+              : adding
+                ? "담는 중..."
+                : "장바구니 담기"}
+        </Button>
+        <Button
+          variant="secondary"
+          onClick={toggleWishlist}
+          disabled={togglingWishlist}
+          style={{ width: "120px", color: isWishlisted ? "var(--color-danger)" : undefined }}
+        >
+          {togglingWishlist ? "처리중..." : isWishlisted ? "♥ 찜 취소" : "♡ 찜하기"}
+        </Button>
+      </div>
+
       {product.description && (
         <p className="whitespace-pre-wrap">{product.description}</p>
       )}

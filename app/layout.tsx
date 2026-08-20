@@ -8,6 +8,28 @@ export const metadata: Metadata = {
   icons: {
     icon: "https://image.posselect.com/cdn/favicons/favicon-transparent-red-256.png",
   },
+  openGraph: {
+    title: "상품 | PosSelect",
+    description: "PosSelect 상품 목록",
+    url: "https://product.posselect.com",
+    siteName: "PosSelect",
+    images: [
+      {
+        url: "https://image.posselect.com/cdn/logos/posselect-logo-hires-no-r.webp",
+        width: 1200,
+        height: 630,
+        alt: "PosSelect 대표 이미지",
+      },
+    ],
+    locale: "ko_KR",
+    type: "website",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "상품 | PosSelect",
+    description: "PosSelect 상품 목록",
+    images: ["https://image.posselect.com/cdn/logos/posselect-logo-hires-no-r.webp"],
+  },
 };
 
 export default function RootLayout({
