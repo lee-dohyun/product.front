@@ -72,6 +72,17 @@ export default function ProductDetailPage() {
           });
           setSelectedValues(initial);
         }
+        // posselect-shell(런타임 셸)이 window.posselect로 노출하는 전역 함수 — 빌드 타임
+        // 의존성 없이 <script> 태그로만 셸을 로드하는 아키텍처라 import가 아니라 이 경로로
+        // 호출한다. beforeInteractive 스크립트가 아직 실행 전이거나 로드 실패한 경우를 대비해
+        // optional chaining으로 안전하게 무시한다.
+        window.posselect?.recentlyViewed?.add({
+          id: data.id,
+          name: data.name,
+          price: data.price,
+          imageUrl: data.images[0]?.imageUrl ?? null,
+          href: `${window.location.origin}/products/${data.id}`,
+        });
       })
       .catch(() => setNotFound(true));
   }, [params.id]);

@@ -15,3 +15,21 @@ declare module "react" {
     }
   }
 }
+
+// posselect-shell/src/header.tsx가 window.posselect로 노출하는 전역 API. 마찬가지로 빌드
+// 타임 의존성 없이 타입만 직접 선언한다.
+declare global {
+  interface Window {
+    posselect?: {
+      recentlyViewed?: {
+        add(item: {
+          id: number;
+          name: string;
+          price: number;
+          imageUrl: string | null;
+          href: string;
+        }): void;
+      };
+    };
+  }
+}
