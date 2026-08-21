@@ -100,10 +100,12 @@ export default function ProductDetailPage() {
     setTogglingWishlist(true);
     try {
       if (isWishlisted) {
-        await fetch(`/api/wishlists/${product.id}`, { method: "DELETE", credentials: "include" });
+        const res = await fetch(`/api/wishlists/${product.id}`, { method: "DELETE", credentials: "include" });
+        if (!res.ok) throw new Error("Failed to remove from wishlist");
         setIsWishlisted(false);
       } else {
-        await fetch(`/api/wishlists?productId=${product.id}`, { method: "POST", credentials: "include" });
+        const res = await fetch(`/api/wishlists?productId=${product.id}`, { method: "POST", credentials: "include" });
+        if (!res.ok) throw new Error("Failed to add to wishlist");
         setIsWishlisted(true);
       }
     } catch (e) {
