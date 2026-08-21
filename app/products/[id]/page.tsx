@@ -3,18 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useParams } from "next/navigation";
 import { Button, Field, Figure, Tag } from "@posselect/ui";
-
-type OptionValue = { id: number; value: string };
-type Option = { id: number; name: string; values: OptionValue[] };
-type VariantOptionValue = { optionId: number; optionName: string; valueId: number; value: string };
-type Variant = {
-  id: number;
-  sku: string | null;
-  price: number;
-  active: boolean;
-  stockQuantity: number;
-  optionValues: VariantOptionValue[];
-};
+import { findMatchingVariant, type Option, type Variant } from "@/lib/variant-matching";
 
 type WishlistItem = { id: number; productId: number; productName: string };
 
@@ -29,21 +18,6 @@ type ProductDetail = {
   options: Option[];
   variants: Variant[];
 };
-
-function findMatchingVariant(
-  variants: Variant[],
-  options: Option[],
-  selected: Record<number, number>
-): Variant | undefined {
-  if (options.length === 0) {
-    return variants[0];
-  }
-  return variants.find((v) =>
-    options.every((opt) =>
-      v.optionValues.some((ov) => ov.optionId === opt.id && ov.valueId === selected[opt.id])
-    )
-  );
-}
 
 export default function ProductDetailPage() {
   const params = useParams<{ id: string }>();
