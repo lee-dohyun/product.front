@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { BlueprintCorners, Button, Field, Input, Table } from "@posselect/ui";
+import { readPurchaseError } from "@/lib/api-error";
 
 type CartItem = {
   variantId: number;
@@ -98,11 +99,14 @@ export default function CartPage() {
   };
 
   const updateQuantity = async (variantId: number, quantity: number) => {
-    await fetch(`/api/cart/items/${variantId}`, {
+    setError(null);
+    const res = await fetch(`/api/cart/items/${variantId}`, {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ quantity }),
     });
+    // 최대 구매 수량 초과·판매 기간 밖(409, product.api#97)이면 수량은 바뀌지 않는다 — 사유를 알린다.
+    if (!res.ok) setError(await readPurchaseError(res, "수량을 바꾸지 못했습니다."));
     loadCart();
   };
 
@@ -140,7 +144,8 @@ export default function CartPage() {
         }),
       });
       if (!res.ok) {
-        setError("주문에 실패했습니다. 입력값을 확인해주세요.");
+        // 409 는 구매 규칙 거부(판매하지 않는 상품, 1회 최대 수량 초과 등) — order.api 사유를 그대로 보여 준다.
+        setError(await readPurchaseError(res, "주문에 실패했습니다. 입력값을 확인해주세요."));
         return;
       }
       const order = await res.json();
