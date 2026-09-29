@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { EMPTY, buildNoticeRows, buildSellerRows } from "./product-notice";
+import { EMPTY, buildNoticeRows, buildPolicyRows, buildSellerRows, type PublicPolicy } from "./product-notice";
 
 describe("buildNoticeRows", () => {
   const required = [
@@ -44,5 +44,47 @@ describe("buildSellerRows", () => {
     });
     expect(rows.find((r) => r.label === "통신판매업 신고번호")?.value).toBe(EMPTY);
     expect(rows.find((r) => r.label === "전화번호")?.value).toBe("1588-0000");
+  });
+});
+
+describe("buildPolicyRows", () => {
+  const none: PublicPolicy = {
+    kcCertType: null, kcCertNumber: null, shippingFeeType: null, shippingFee: null, freeShippingThreshold: null,
+    shippingLeadDays: null, jejuExtraFee: null, islandExtraFee: null, returnShippingFee: null,
+    exchangeShippingFee: null, returnAddress: null, saleStartAt: null, saleEndAt: null, maxPurchaseQuantity: null,
+  };
+  const value = (rows: { label: string; value: string }[], label: string) => rows.find((r) => r.label === label)?.value;
+
+  it("정책이 하나도 없으면 빈 배열(섹션 숨김) — #79 이전 상품", () => {
+    expect(buildPolicyRows(none)).toEqual([]);
+    expect(buildPolicyRows(null)).toEqual([]);
+  });
+
+  it("조건부 무료배송 문구, 출고일, 반품비, 빈 교환비는 '-'", () => {
+    const rows = buildPolicyRows({
+      ...none, shippingFeeType: "CONDITIONAL", shippingFee: 3000, freeShippingThreshold: 50000,
+      shippingLeadDays: 2, returnShippingFee: 3000, returnAddress: "서울",
+    });
+    expect(value(rows, "배송비")).toBe("3,000원 (50,000원 이상 구매 시 무료)");
+    expect(value(rows, "출고 소요일")).toBe("결제 후 2영업일 이내 출고");
+    expect(value(rows, "반품 배송비(편도)")).toBe("3,000원");
+    expect(value(rows, "교환 배송비(왕복)")).toBe(EMPTY);
+  });
+
+  it("판매 기간·최대 수량·KC 는 값이 있을 때만 행이 생긴다", () => {
+    const base = { ...none, shippingFeeType: "FREE" };
+    expect(buildPolicyRows(base).map((r) => r.label)).not.toContain("KC 인증");
+    const rows = buildPolicyRows({
+      ...base, kcCertType: "SAFETY_CERT", kcCertNumber: "HU071234-1001", maxPurchaseQuantity: 5,
+      saleStartAt: "2026-10-01T09:00:00", saleEndAt: null,
+    });
+    expect(value(rows, "배송비")).toBe("무료배송");
+    expect(value(rows, "KC 인증")).toBe("안전인증 HU071234-1001");
+    expect(value(rows, "1회 최대 구매 수량")).toBe("5개");
+    expect(value(rows, "판매 기간")).toBe("2026-10-01 09:00 ~");
+  });
+
+  it("KC 대상 아님(NONE)은 표시하지 않는다", () => {
+    expect(buildPolicyRows({ ...none, shippingFeeType: "FREE", kcCertType: "NONE" }).map((r) => r.label)).not.toContain("KC 인증");
   });
 });

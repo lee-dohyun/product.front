@@ -4,16 +4,19 @@ import { useEffect, useState } from "react";
 import { Table } from "@posselect/ui";
 import {
   buildNoticeRows,
+  buildPolicyRows,
   buildSellerRows,
   SHOW_SELLER_INFO,
   type NoticeRow,
   type ProductAttribute,
+  type PublicPolicy,
   type PublicSellerInfo,
   type RequiredAttribute,
 } from "@/lib/product-notice";
 
 /**
- * 상품정보제공고시 + 판매자 정보(product.front#36). 둘 다 구매 전에 보여야 하는 법정 정보다.
+ * 상품정보제공고시 + 배송·교환·반품 안내(product.front#40) + 판매자 정보(product.front#36).
+ * 모두 구매 전에 보여야 하는 법정 정보다.
  *
  * 세 요청은 서로 독립이라 하나가 실패해도 나머지는 보여 준다. 고시 요건이 없는 카테고리는 고시 표를
  * 숨긴다. 판매자 정보를 못 불러오면 조용히 숨기지 않고 실패 문구를 남긴다 — 법정 표시가 빠진 것이
@@ -21,6 +24,7 @@ import {
  */
 export default function ProductNotice({ productId, categoryId }: { productId: number; categoryId: number }) {
   const [noticeRows, setNoticeRows] = useState<NoticeRow[]>([]);
+  const [policyRows, setPolicyRows] = useState<NoticeRow[]>([]);
   const [sellerRows, setSellerRows] = useState<NoticeRow[] | null>(null);
   const [sellerError, setSellerError] = useState(false);
 
@@ -34,6 +38,11 @@ export default function ProductNotice({ productId, categoryId }: { productId: nu
       })
       .catch(() => setNoticeRows([]));
 
+    fetch(`/api/products/${productId}/policy`)
+      .then((r) => (r.ok ? r.json() : null))
+      .then((p: PublicPolicy | null) => setPolicyRows(buildPolicyRows(p)))
+      .catch(() => setPolicyRows([]));
+
     if (!SHOW_SELLER_INFO) return;
     fetch(`/api/products/${productId}/seller`)
       .then(async (r) => {
@@ -46,6 +55,7 @@ export default function ProductNotice({ productId, categoryId }: { productId: nu
   return (
     <section className="mt-8 flex flex-col gap-6">
       {noticeRows.length > 0 && <InfoTable title="상품정보제공고시" rows={noticeRows} />}
+      {policyRows.length > 0 && <InfoTable title="배송·교환·반품 안내" rows={policyRows} />}
       {sellerRows && <InfoTable title="판매자 정보" rows={sellerRows} />}
       {sellerError && <p className="text-sm text-muted">판매자 정보를 불러오지 못했습니다.</p>}
     </section>

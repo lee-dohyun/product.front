@@ -55,3 +55,84 @@ export function buildSellerRows(s: PublicSellerInfo): NoticeRow[] {
     { label: "이메일", value: present(s.email) },
   ];
 }
+
+/** 상품 판매 정책 공개 조회(GET /api/products/{id}/policy, product.api#79) 중 표시에 쓰는 필드. */
+export type PublicPolicy = {
+  kcCertType: string | null;
+  kcCertNumber: string | null;
+  shippingFeeType: string | null;
+  shippingFee: number | null;
+  freeShippingThreshold: number | null;
+  shippingLeadDays: number | null;
+  jejuExtraFee: number | null;
+  islandExtraFee: number | null;
+  returnShippingFee: number | null;
+  exchangeShippingFee: number | null;
+  returnAddress: string | null;
+  saleStartAt: string | null;
+  saleEndAt: string | null;
+  maxPurchaseQuantity: number | null;
+};
+
+const KC_LABEL: Record<string, string> = {
+  SAFETY_CERT: "안전인증",
+  SAFETY_CONFIRM: "안전확인",
+  SUPPLIER_CONFORMITY: "공급자적합성확인",
+};
+
+function won(n: number | null): string {
+  return n == null ? EMPTY : `${Number(n).toLocaleString("ko-KR")}원`;
+}
+
+function shippingText(p: PublicPolicy): string {
+  switch (p.shippingFeeType) {
+    case "FREE":
+      return "무료배송";
+    case "CONDITIONAL":
+      return `${won(p.shippingFee)} (${won(p.freeShippingThreshold)} 이상 구매 시 무료)`;
+    case "PAID":
+      return won(p.shippingFee);
+    default:
+      return EMPTY;
+  }
+}
+
+function dateTimeText(v: string | null): string {
+  return v ? v.slice(0, 16).replace("T", " ") : "";
+}
+
+/**
+ * "배송·교환·반품 안내" 표(product.front#40). 배송비·출고일·반품/교환 비용·반품지는 청약 전 제공 정보다.
+ *
+ * 판매자가 정책을 **하나도** 입력하지 않은 상품(#79 이전에 등록된 상품 전부)은 빈 배열 → 섹션을 숨긴다.
+ * 모든 칸이 "-" 인 표는 정보가 아니라 잡음이다. 일부만 있으면 빈 칸은 "-"(지어내지 않는다).
+ * 판매 기간·최대 구매 수량·KC 인증은 값이 있을 때만 행을 만든다(없음 = 제한 없음/대상 아님).
+ */
+export function buildPolicyRows(p: PublicPolicy | null): NoticeRow[] {
+  if (!p) return [];
+  const hasAny = p.shippingFeeType != null || p.returnShippingFee != null || p.returnAddress != null || p.shippingLeadDays != null;
+  if (!hasAny) return [];
+
+  const rows: NoticeRow[] = [
+    { label: "배송비", value: shippingText(p) },
+    { label: "출고 소요일", value: p.shippingLeadDays == null ? EMPTY : `결제 후 ${p.shippingLeadDays}영업일 이내 출고` },
+  ];
+  if (p.jejuExtraFee != null || p.islandExtraFee != null) {
+    rows.push({ label: "제주·도서산간 추가 배송비", value: `제주 ${won(p.jejuExtraFee)} / 도서산간 ${won(p.islandExtraFee)}` });
+  }
+  rows.push(
+    { label: "반품 배송비(편도)", value: won(p.returnShippingFee) },
+    { label: "교환 배송비(왕복)", value: won(p.exchangeShippingFee) },
+    { label: "반품·교환 주소", value: present(p.returnAddress) },
+  );
+  if (p.saleStartAt || p.saleEndAt) {
+    rows.push({ label: "판매 기간", value: `${dateTimeText(p.saleStartAt)} ~ ${dateTimeText(p.saleEndAt)}`.trim() });
+  }
+  if (p.maxPurchaseQuantity != null) {
+    rows.push({ label: "1회 최대 구매 수량", value: `${p.maxPurchaseQuantity}개` });
+  }
+  if (p.kcCertType && p.kcCertType !== "NONE") {
+    rows.push({ label: "KC 인증", value: `${KC_LABEL[p.kcCertType] ?? p.kcCertType} ${present(p.kcCertNumber)}` });
+  }
+  return rows;
+}
