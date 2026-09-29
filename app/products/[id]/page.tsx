@@ -5,6 +5,7 @@ import { useParams } from "next/navigation";
 import { Button, Field, Figure, Tag } from "@posselect/ui";
 import { findMatchingVariant, type Option, type Variant } from "@/lib/variant-matching";
 import ProductQa from "./ProductQa";
+import ProductNotice from "./ProductNotice";
 
 type WishlistItem = { id: number; productId: number; productName: string };
 
@@ -201,6 +202,8 @@ export default function ProductDetailPage() {
       {product.description && (
         <p className="whitespace-pre-wrap">{product.description}</p>
       )}
+
+      <ProductNotice productId={product.id} categoryId={product.category.id} />
 
       <ProductQa productName={product.name} />
     </main>
