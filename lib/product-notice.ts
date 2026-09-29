@@ -7,6 +7,15 @@
  * 값이 없으면 지어내지 않고 "-" 로 둔다. 필수 항목이 비어 있는 것 자체가 판매자가 채워야 할 결손이고,
  * 그걸 화면에서 가리면 결손이 드러나지 않는다.
  */
+/**
+ * 판매자 정보 섹션 노출 스위치(product.front#38). **사업자 등록 전이라 끈다**(2026-09-29 사용자 결정).
+ * 자사 판매자 데이터가 자리표시 값("대표자 미정 / 000-00-00000")이라 공개하면 안 된다.
+ *
+ * 다시 켜는 조건: 사업자 등록 + 통신판매업 신고 후 판매자 데이터를 실제 값으로 갱신했을 때.
+ * 3P 판매자를 받기 전에는 반드시 켜야 한다 — 전자상거래법상 청약 전 제공 의무다.
+ */
+export const SHOW_SELLER_INFO = false;
+
 export type RequiredAttribute = { code: string; label: string; required: boolean };
 export type ProductAttribute = { code: string; value: string | null };
 export type NoticeRow = { label: string; value: string };

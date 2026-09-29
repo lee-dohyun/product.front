@@ -5,6 +5,7 @@ import { Table } from "@posselect/ui";
 import {
   buildNoticeRows,
   buildSellerRows,
+  SHOW_SELLER_INFO,
   type NoticeRow,
   type ProductAttribute,
   type PublicSellerInfo,
@@ -33,6 +34,7 @@ export default function ProductNotice({ productId, categoryId }: { productId: nu
       })
       .catch(() => setNoticeRows([]));
 
+    if (!SHOW_SELLER_INFO) return;
     fetch(`/api/products/${productId}/seller`)
       .then(async (r) => {
         if (!r.ok) throw new Error(String(r.status));
