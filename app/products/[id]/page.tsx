@@ -6,6 +6,7 @@ import { Button, Field, Figure, Tag } from "@posselect/ui";
 import { findMatchingVariant, type Option, type Variant } from "@/lib/variant-matching";
 import ProductQa from "./ProductQa";
 import ProductNotice from "./ProductNotice";
+import { readPurchaseError } from "@/lib/api-error";
 
 type WishlistItem = { id: number; productId: number; productName: string };
 
@@ -28,6 +29,7 @@ export default function ProductDetailPage() {
   const [notFound, setNotFound] = useState(false);
   const [adding, setAdding] = useState(false);
   const [added, setAdded] = useState(false);
+  const [cartError, setCartError] = useState<string | null>(null);
 
   const [isWishlisted, setIsWishlisted] = useState(false);
   const [togglingWishlist, setTogglingWishlist] = useState(false);
@@ -85,12 +87,18 @@ export default function ProductDetailPage() {
     if (!selectedVariant) return;
     setAdding(true);
     setAdded(false);
+    setCartError(null);
     try {
-      await fetch("/api/cart/items", {
+      const res = await fetch("/api/cart/items", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ variantId: selectedVariant.id, quantity: 1 }),
       });
+      // 예전에는 응답을 보지 않고 "담았습니다"를 띄웠다 — 판매 기간 밖·최대 수량 초과(409)도 성공처럼 보였다.
+      if (!res.ok) {
+        setCartError(await readPurchaseError(res, "장바구니에 담지 못했습니다. 잠시 후 다시 시도해 주세요."));
+        return;
+      }
       setAdded(true);
     } finally {
       setAdding(false);
@@ -179,6 +187,11 @@ export default function ProductDetailPage() {
         )}
       </div>
       
+      {cartError && (
+        <p role="alert" className="text-sm mb-2" style={{ color: "var(--color-danger)" }}>
+          {cartError}
+        </p>
+      )}
       <div className="flex gap-2 mb-4">
         <Button variant="primary" onClick={addToCart} disabled={adding || soldOut} style={{ flex: 1 }}>
           {!selectedVariant || displayStock === 0
