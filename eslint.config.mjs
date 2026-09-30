@@ -1,14 +1,6 @@
-import { dirname } from "path";
-import { fileURLToPath } from "url";
-import { FlatCompat } from "@eslint/eslintrc";
+import nextVitals from "eslint-config-next/core-web-vitals";
+import nextTs from "eslint-config-next/typescript";
 import sonarjs from "eslint-plugin-sonarjs";
-
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = dirname(__filename);
-
-const compat = new FlatCompat({
-  baseDirectory: __dirname,
-});
 
 // SonarQube 룰셋의 코드스멜 탐지만 ESLint 플러그인으로 가져온 것이다(#25).
 // SonarQube 서버 자체는 도입하지 않았다 — Postgres 백엔드를 요구하는 상시 서비스를
@@ -43,7 +35,16 @@ const SONARJS_OVERRIDES = {
 };
 
 const eslintConfig = [
-  ...compat.extends("next/core-web-vitals", "next/typescript"),
+  // Next 16 부터 eslint-config-next 는 flat config 를 직접 export 한다(FlatCompat 은 순환 참조로 깨진다).
+  ...nextVitals,
+  ...nextTs,
+  {
+    // eslint-config-next 16 이 새로 켠 react-hooks v7 규칙. 업그레이드 시점에 기존 코드 1건
+    // (cart/page.tsx 의 effect 가 아래에 선언된 applySavedAddress 를 비동기 콜백에서 참조)이
+    // 걸렸다. 런타임 문제는 아니고(선언 이후 호출), 장바구니 핵심 경로라 업그레이드 PR 에서
+    // 로직을 옮기지 않으려 warn 으로 둔다 — 신호는 남기고 별도 이슈로 고친다.
+    rules: { "react-hooks/immutability": "warn" },
+  },
   {
     // 소스 코드만 대상. 설정 파일(*.mjs/*.config.ts)까지 걸면 노이즈만 는다.
     files: ["app/**/*.{ts,tsx}", "lib/**/*.{ts,tsx}"],
