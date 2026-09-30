@@ -51,6 +51,18 @@ export default function CartPage() {
   const [orderResult, setOrderResult] = useState<OrderResult | null>(null);
   const [error, setError] = useState<string | null>(null);
 
+  const applySavedAddress = (address: SavedAddress) => {
+    setSelectedAddressId(address.id);
+    setOrdererName(address.recipientName);
+    setOrdererPhone(address.phoneNumber);
+    setShippingAddress(`(${address.zipCode}) ${address.address1} ${address.address2 ?? ""}`.trim());
+    setStructuredAddress({
+      zipCode: address.zipCode,
+      address1: address.address1,
+      address2: address.address2 ?? "",
+    });
+  };
+
   const loadCart = () => {
     fetch("/api/cart")
       .then((res) => res.json())
@@ -73,18 +85,6 @@ export default function CartPage() {
       })
       .catch(() => setSavedAddresses([]));
   }, []);
-
-  const applySavedAddress = (address: SavedAddress) => {
-    setSelectedAddressId(address.id);
-    setOrdererName(address.recipientName);
-    setOrdererPhone(address.phoneNumber);
-    setShippingAddress(`(${address.zipCode}) ${address.address1} ${address.address2 ?? ""}`.trim());
-    setStructuredAddress({
-      zipCode: address.zipCode,
-      address1: address.address1,
-      address2: address.address2 ?? "",
-    });
-  };
 
   const handleAddressSelect = (value: string) => {
     if (value === "manual") {
