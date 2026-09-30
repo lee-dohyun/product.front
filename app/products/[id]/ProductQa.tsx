@@ -149,6 +149,8 @@ export default function ProductQa({ productName }: { productName: string }) {
                       <img
                         src={p.thumbnailUrl}
                         alt={p.name}
+                        loading="lazy"
+                        decoding="async"
                         className="w-full h-full object-cover"
                       />
                     )}

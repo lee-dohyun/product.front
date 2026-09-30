@@ -53,6 +53,8 @@ function ProductList() {
                   <img
                     src={product.thumbnailUrl}
                     alt={product.name}
+                    loading="lazy"
+                    decoding="async"
                     className="w-full h-full object-cover"
                   />
                 )}
