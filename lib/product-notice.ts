@@ -72,6 +72,8 @@ export type PublicPolicy = {
   saleStartAt: string | null;
   saleEndAt: string | null;
   maxPurchaseQuantity: number | null;
+  /** 판매자 정지·해지로 판매 중단(product.api#100). 노출은 되지만 담기·주문이 막힌다. 구버전 응답엔 없다. */
+  saleSuspended?: boolean;
 };
 
 const KC_LABEL: Record<string, string> = {
