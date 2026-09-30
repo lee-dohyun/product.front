@@ -7,6 +7,7 @@ import { findMatchingVariant, type Option, type Variant } from "@/lib/variant-ma
 import ProductQa from "./ProductQa";
 import ProductNotice from "./ProductNotice";
 import { readPurchaseError } from "@/lib/api-error";
+import type { PublicPolicy } from "@/lib/product-notice";
 
 type WishlistItem = { id: number; productId: number; productName: string };
 
@@ -22,6 +23,24 @@ type ProductDetail = {
   variants: Variant[];
 };
 
+/** 재고·판매 상태 태그. 판매 중단(product.api#100)이 품절보다 앞선다 — 재고와 무관하게 살 수 없다. */
+function AvailabilityTag({ saleSuspended, hasVariant, soldOut, stock }: Readonly<{
+  saleSuspended: boolean; hasVariant: boolean; soldOut: boolean; stock: number;
+}>) {
+  if (saleSuspended) return <Tag variant="danger">판매 중단</Tag>;
+  if (!hasVariant) return <Tag variant="danger">이 옵션 조합은 판매하지 않습니다</Tag>;
+  if (soldOut) return <Tag variant="danger">품절</Tag>;
+  return <Tag variant={stock <= 5 ? "warning" : "success"}>재고 {stock}개</Tag>;
+}
+
+function cartButtonLabel(s: { saleSuspended: boolean; soldOut: boolean; added: boolean; adding: boolean }): string {
+  if (s.saleSuspended) return "판매 중단";
+  if (s.soldOut) return "품절";
+  if (s.added) return "담았습니다";
+  if (s.adding) return "담는 중...";
+  return "장바구니 담기";
+}
+
 export default function ProductDetailPage() {
   const params = useParams<{ id: string }>();
   const [product, setProduct] = useState<ProductDetail | null>(null);
@@ -30,9 +49,19 @@ export default function ProductDetailPage() {
   const [adding, setAdding] = useState(false);
   const [added, setAdded] = useState(false);
   const [cartError, setCartError] = useState<string | null>(null);
+  // 판매자 정지·해지로 판매 중단(product.api#100) — 상품은 보이지만 담기를 막는다. 서버도 409 로 막으므로
+  // 조회에 실패하면 false(버튼을 열어 둔다)로 두고 서버 사유를 보여 준다.
+  const [saleSuspended, setSaleSuspended] = useState(false);
 
   const [isWishlisted, setIsWishlisted] = useState(false);
   const [togglingWishlist, setTogglingWishlist] = useState(false);
+
+  useEffect(() => {
+    fetch(`/api/products/${params.id}/policy`)
+      .then((res) => (res.ok ? res.json() : null))
+      .then((p: PublicPolicy | null) => setSaleSuspended(p?.saleSuspended === true))
+      .catch(() => setSaleSuspended(false));
+  }, [params.id]);
 
   useEffect(() => {
     fetch(`/api/products/${params.id}`)
@@ -176,15 +205,7 @@ export default function ProductDetailPage() {
       )}
 
       <div className="mb-4">
-        {!selectedVariant ? (
-          <Tag variant="danger">이 옵션 조합은 판매하지 않습니다</Tag>
-        ) : soldOut ? (
-          <Tag variant="danger">품절</Tag>
-        ) : displayStock <= 5 ? (
-          <Tag variant="warning">재고 {displayStock}개</Tag>
-        ) : (
-          <Tag variant="success">재고 {displayStock}개</Tag>
-        )}
+        <AvailabilityTag saleSuspended={saleSuspended} hasVariant={!!selectedVariant} soldOut={soldOut} stock={displayStock} />
       </div>
       
       {cartError && (
@@ -193,14 +214,8 @@ export default function ProductDetailPage() {
         </p>
       )}
       <div className="flex gap-2 mb-4">
-        <Button variant="primary" onClick={addToCart} disabled={adding || soldOut} style={{ flex: 1 }}>
-          {!selectedVariant || displayStock === 0
-            ? "품절"
-            : added
-              ? "담았습니다"
-              : adding
-                ? "담는 중..."
-                : "장바구니 담기"}
+        <Button variant="primary" onClick={addToCart} disabled={adding || soldOut || saleSuspended} style={{ flex: 1 }}>
+          {cartButtonLabel({ saleSuspended, soldOut: !selectedVariant || displayStock === 0, added, adding })}
         </Button>
         <Button
           variant="secondary"
