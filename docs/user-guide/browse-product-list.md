@@ -5,7 +5,7 @@
 | 대상 | 쇼핑몰 고객 |
 | 화면 주소 | <https://product.posselect.com/> |
 | 필요한 권한 | 없음 |
-| 최종 확인 | 2026-10-01 — product.api `e6bea1a`(운영 배포본). 이 화면의 빌드를 운영 API 에 붙여 브라우저(1440px·390px)로 확인: 처음 24개, 「더보기」로 129개까지 중복 없이 이어짐, 다 보면 버튼 사라짐, 카테고리(16개)·결과 없는 검색, 불러오기 실패 메시지 후 재시도, 상세에서 뒤로 왔을 때 24개. **운영 주소(product.posselect.com)에 배포된 화면은 미확인**(이 문서와 같은 PR 이 머지돼야 배포됨) |
+| 최종 확인 | 2026-10-01 — product.front `ab044b4`, product.api `e6bea1a`. 운영 주소에서 브라우저(1440px·390px)로 확인: 처음 24개, 「더보기」로 129개까지 중복 없이 이어짐, 다 보면 버튼 사라짐, 카테고리(16개)·결과 없는 검색, 불러오기 실패 메시지 후 재시도(실패는 요청을 가로채 만든 것), 상세에서 뒤로 왔을 때 24개 |
 | 관련 이슈 | lee-dohyun/product.front#52, lee-dohyun/product.api#107 |
 
 > 양식: [사용자 설명서 표준](https://github.com/lee-dohyun/architecture/blob/main/docs/USER_GUIDE_STANDARD.md)
