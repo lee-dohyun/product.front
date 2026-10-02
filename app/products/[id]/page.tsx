@@ -8,8 +8,8 @@ import ProductQa from "./ProductQa";
 import ProductNotice from "./ProductNotice";
 import { readPurchaseError } from "@/lib/api-error";
 import type { PublicPolicy } from "@/lib/product-notice";
+import { isProductWishlisted, WISHLIST_STATUS_PAGE_SIZE } from "@/lib/wishlist";
 
-type WishlistItem = { id: number; productId: number; productName: string };
 
 type ProductDetail = {
   id: number;
@@ -98,12 +98,9 @@ export default function ProductDetailPage() {
       .catch(() => setNotFound(true));
 
     // Fetch wishlist status
-    fetch("/api/wishlists", { credentials: "include" })
-      .then((res) => (res.ok ? res.json() : []))
-      .then((wishlists: WishlistItem[]) => {
-        const wishlisted = wishlists.some((item) => String(item.productId) === params.id);
-        setIsWishlisted(wishlisted);
-      })
+    fetch(`/api/wishlists?page=0&size=${WISHLIST_STATUS_PAGE_SIZE}`, { credentials: "include" })
+      .then((res) => (res.ok ? res.json() : null))
+      .then((payload: unknown) => setIsWishlisted(isProductWishlisted(payload, params.id)))
       .catch(() => setIsWishlisted(false));
   }, [params.id]);
 
@@ -144,7 +141,8 @@ export default function ProductDetailPage() {
         setIsWishlisted(false);
       } else {
         const res = await fetch(`/api/wishlists?productId=${product.id}`, { method: "POST", credentials: "include" });
-        if (!res.ok) throw new Error("Failed to add to wishlist");
+        // 409 = 이미 찜한 상품. 조회 범위 밖이라 상태를 몰랐던 경우이므로 실패가 아니라 "찜 됨"으로 맞춘다.
+        if (!res.ok && res.status !== 409) throw new Error("Failed to add to wishlist");
         setIsWishlisted(true);
       }
     } catch (e) {
