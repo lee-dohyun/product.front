@@ -54,7 +54,7 @@ export default function CartPage() {
   const [orderResult, setOrderResult] = useState<OrderResult | null>(null);
   const [error, setError] = useState<string | null>(null);
   // 로그인한 회원의 등급. 비로그인·조회 실패면 null 이고 할인 안내를 아예 보이지 않는다.
-  const [memberGrade, setMemberGrade] = useState<MemberGrade["grade"] | null>(null);
+  const [memberGrade, setMemberGrade] = useState<MemberGrade | null>(null);
 
   const applySavedAddress = (address: SavedAddress) => {
     setSelectedAddressId(address.id);
