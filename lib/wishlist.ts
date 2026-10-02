@@ -1,20 +1,12 @@
 /**
- * 찜 목록 응답에서 특정 상품이 찜 되어 있는지 판정한다.
+ * 찜 상품 ID 목록 응답에서 특정 상품이 찜 되어 있는지 판정한다.
  *
- * product.api 의 GET /api/wishlists 는 배열이 아니라 Spring Page(`{ content: [...] }`)를 돌려준다.
- * 배열로 가정하고 `.some` 을 부르면 TypeError 가 나 "찜 안 함"으로 조용히 떨어지고,
- * 이미 찜한 상품에서 다시 POST(409)만 반복돼 상세 화면에서 찜을 취소할 수 없게 된다(product.api#10).
+ * product.api 의 GET /api/wishlists/product-ids 는 로그인 사용자의 찜 상품 ID 전체를
+ * 페이지 없이 숫자 배열(`[3, 7]`)로 돌려준다. 예전에는 GET /api/wishlists(Page, 최대 100건)를
+ * 읽어서, 100개 넘게 찜한 사용자는 뒤쪽 상품이 "찜 안 함"으로 보였다(product.api#10).
  * 비로그인(400/401 등)으로 본문이 다른 모양이어도 false 를 돌려준다.
  */
-type WishlistEntry = { productId: number | string };
-
 export function isProductWishlisted(payload: unknown, productId: number | string): boolean {
-  const items: unknown = Array.isArray(payload)
-    ? payload
-    : (payload as { content?: unknown } | null | undefined)?.content;
-  if (!Array.isArray(items)) return false;
-  return (items as WishlistEntry[]).some((item) => item != null && String(item.productId) === String(productId));
+  if (!Array.isArray(payload)) return false;
+  return payload.some((id) => id != null && String(id) === String(productId));
 }
-
-/** 한 번에 조회하는 찜 개수. 이보다 많이 찜한 경우는 POST 409(이미 찜함)로 상태를 바로잡는다. */
-export const WISHLIST_STATUS_PAGE_SIZE = 100;
