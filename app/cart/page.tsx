@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { BlueprintCorners, Button, Field, Input, Table } from "@posselect/ui";
 import { readPurchaseError } from "@/lib/api-error";
+import { fetchMemberGrade, gradeDiscountAmount, type MemberGrade } from "@/lib/grade-discount";
 
 type CartItem = {
   variantId: number;
@@ -22,6 +23,8 @@ type Cart = {
 type OrderResult = {
   id: number;
   totalPrice: number;
+  discountAmount: number;
+  gradeCode: string | null;
 };
 
 type SavedAddress = {
@@ -50,6 +53,8 @@ export default function CartPage() {
   const [placing, setPlacing] = useState(false);
   const [orderResult, setOrderResult] = useState<OrderResult | null>(null);
   const [error, setError] = useState<string | null>(null);
+  // 로그인한 회원의 등급. 비로그인·조회 실패면 null 이고 할인 안내를 아예 보이지 않는다.
+  const [memberGrade, setMemberGrade] = useState<MemberGrade | null>(null);
 
   const applySavedAddress = (address: SavedAddress) => {
     setSelectedAddressId(address.id);
@@ -84,6 +89,7 @@ export default function CartPage() {
         }
       })
       .catch(() => setSavedAddresses([]));
+    fetchMemberGrade().then(setMemberGrade);
   }, []);
 
   const handleAddressSelect = (value: string) => {
@@ -164,7 +170,12 @@ export default function CartPage() {
       const paidOrder = await payRes.json();
 
       await fetch("/api/cart", { method: "DELETE" });
-      setOrderResult({ id: paidOrder.id, totalPrice: paidOrder.totalPrice });
+      setOrderResult({
+        id: paidOrder.id,
+        totalPrice: paidOrder.totalPrice,
+        discountAmount: paidOrder.discountAmount ?? 0,
+        gradeCode: paidOrder.gradeCode ?? null,
+      });
       loadCart();
     } finally {
       setPlacing(false);
@@ -175,6 +186,10 @@ export default function CartPage() {
     return null;
   }
 
+  const expectedDiscount = memberGrade
+    ? gradeDiscountAmount(cart.totalPrice, memberGrade.discountRate)
+    : 0;
+
   if (orderResult) {
     return (
       <main className="max-w-3xl mx-auto p-8">
@@ -182,6 +197,8 @@ export default function CartPage() {
         <p className="text-muted">
           주문번호 #{orderResult.id} · 결제 금액{" "}
           {orderResult.totalPrice.toLocaleString()}원
+          {orderResult.discountAmount > 0 &&
+            ` (회원 등급 할인 ${orderResult.discountAmount.toLocaleString()}원 적용)`}
         </p>
         <Link href="/" className="underline mt-4 inline-block">
           상품 목록으로
@@ -252,7 +269,18 @@ export default function CartPage() {
             </tbody>
           </Table>
           <div className="mt-6 text-right">
-            <h3>합계: {cart.totalPrice.toLocaleString()}원</h3>
+            {expectedDiscount > 0 && memberGrade ? (
+              <>
+                <p className="text-muted">상품 합계: {cart.totalPrice.toLocaleString()}원</p>
+                <p className="text-muted">
+                  {memberGrade.name} 등급 할인 ({memberGrade.discountRate}%): -
+                  {expectedDiscount.toLocaleString()}원
+                </p>
+                <h3>결제 예정 금액: {(cart.totalPrice - expectedDiscount).toLocaleString()}원</h3>
+              </>
+            ) : (
+              <h3>합계: {cart.totalPrice.toLocaleString()}원</h3>
+            )}
           </div>
 
           <div className="mt-8 pt-6" style={{ borderTop: "1px solid var(--color-divider)" }}>
