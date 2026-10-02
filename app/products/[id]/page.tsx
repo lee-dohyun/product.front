@@ -8,7 +8,7 @@ import ProductQa from "./ProductQa";
 import ProductNotice from "./ProductNotice";
 import { readPurchaseError } from "@/lib/api-error";
 import type { PublicPolicy } from "@/lib/product-notice";
-import { isProductWishlisted, WISHLIST_STATUS_PAGE_SIZE } from "@/lib/wishlist";
+import { isProductWishlisted } from "@/lib/wishlist";
 
 
 type ProductDetail = {
@@ -98,7 +98,7 @@ export default function ProductDetailPage() {
       .catch(() => setNotFound(true));
 
     // Fetch wishlist status
-    fetch(`/api/wishlists?page=0&size=${WISHLIST_STATUS_PAGE_SIZE}`, { credentials: "include" })
+    fetch("/api/wishlists/product-ids", { credentials: "include" })
       .then((res) => (res.ok ? res.json() : null))
       .then((payload: unknown) => setIsWishlisted(isProductWishlisted(payload, params.id)))
       .catch(() => setIsWishlisted(false));
