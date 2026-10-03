@@ -1,10 +1,11 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { BlueprintCorners, Button, Field, Input, Table } from "@posselect/ui";
 import { readPurchaseError } from "@/lib/api-error";
 import { fetchMemberGrade, gradeDiscountAmount, type MemberGrade } from "@/lib/grade-discount";
+import { createOrderAttempt, fetchWithRetry } from "@/lib/order-submit";
 
 type CartItem = {
   variantId: number;
@@ -53,6 +54,8 @@ export default function CartPage() {
   const [placing, setPlacing] = useState(false);
   const [orderResult, setOrderResult] = useState<OrderResult | null>(null);
   const [error, setError] = useState<string | null>(null);
+  // 같은 주문 내용의 재시도(자동·「주문하기」 다시 누름)를 같은 주문에 묶는 멱등 키(gateway#306).
+  const orderAttempt = useRef(createOrderAttempt());
   // 로그인한 회원의 등급. 비로그인·조회 실패면 null 이고 할인 안내를 아예 보이지 않는다.
   const [memberGrade, setMemberGrade] = useState<MemberGrade | null>(null);
 
@@ -126,29 +129,35 @@ export default function CartPage() {
     setPlacing(true);
     setError(null);
     try {
-      const res = await fetch("/api/orders", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          ordererName,
-          ordererPhone,
-          shippingAddress,
-          ...(structuredAddress && {
-            recipientName: ordererName,
-            recipientPhone: ordererPhone,
-            zipCode: structuredAddress.zipCode,
-            address1: structuredAddress.address1,
-            address2: structuredAddress.address2,
-          }),
-          items: cart.items.map((item) => ({
-            productId: item.productId,
-            variantId: item.variantId,
-            productName: item.name,
-            price: item.price,
-            quantity: item.quantity,
-          })),
+      const body = JSON.stringify({
+        ordererName,
+        ordererPhone,
+        shippingAddress,
+        ...(structuredAddress && {
+          recipientName: ordererName,
+          recipientPhone: ordererPhone,
+          zipCode: structuredAddress.zipCode,
+          address1: structuredAddress.address1,
+          address2: structuredAddress.address2,
         }),
+        items: cart.items.map((item) => ({
+          productId: item.productId,
+          variantId: item.variantId,
+          productName: item.name,
+          price: item.price,
+          quantity: item.quantity,
+        })),
       });
+      // 응답을 못 받으면(게이트웨이 타임아웃 등) 같은 키로 한 번 더 보낸다 — order.api 가 이미 만든
+      // 주문이 있으면 새로 만들지 않고 그 주문을 돌려준다.
+      const idempotencyKey = orderAttempt.current.keyFor(body);
+      const res = await fetchWithRetry(() =>
+        fetch("/api/orders", {
+          method: "POST",
+          headers: { "Content-Type": "application/json", "Idempotency-Key": idempotencyKey },
+          body,
+        }),
+      );
       if (!res.ok) {
         // 409 는 구매 규칙 거부(판매하지 않는 상품, 1회 최대 수량 초과 등) — order.api 사유를 그대로 보여 준다.
         setError(await readPurchaseError(res, "주문에 실패했습니다. 입력값을 확인해주세요."));
@@ -159,17 +168,36 @@ export default function CartPage() {
       // 비로그인(게스트) 주문은 계정으로 소유자를 확인할 수 없어서, 생성 응답으로 받은 토큰을
       // 되돌려 보내야 결제가 허용된다. 로그인 주문은 게이트웨이가 넣어주는 신원 헤더로 확인되므로
       // 이 값이 없다(order.api가 발급하지 않음).
-      const payRes = await fetch(`/api/orders/${order.id}/pay`, {
-        method: "POST",
-        headers: order.guestToken ? { "X-Order-Guest-Token": order.guestToken } : {},
-      });
-      if (!payRes.ok) {
-        setError("결제에 실패했습니다. 다시 시도해주세요.");
-        return;
+      const guestHeaders: Record<string, string> = order.guestToken
+        ? { "X-Order-Guest-Token": order.guestToken }
+        : {};
+      let paidOrder = order;
+      // 다시 보낸 주문 요청이 "이미 결제까지 끝난 주문"을 돌려받을 수 있다(지난번에 결제 응답만 못 받은
+      // 경우). 그때는 다시 결제하지 않는다 — order.api 가 이미 결제된 주문이라고 거부한다.
+      if (order.status !== "PAID") {
+        // 결제는 order.api 가 주문 상태로 한 번만 받는다(두 번째는 409) — 다시 보내도 이중 결제가 아니다.
+        const payRes = await fetchWithRetry(() =>
+          fetch(`/api/orders/${order.id}/pay`, { method: "POST", headers: guestHeaders }),
+        );
+        if (payRes.ok) {
+          paidOrder = await payRes.json();
+        } else {
+          // 실패 응답이어도 결제는 됐을 수 있다(응답만 못 받고 다시 보내 409 를 받은 경우). 주문을 다시
+          // 읽어 결제 완료면 성공으로 본다.
+          const confirmed = await fetch(`/api/orders/${order.id}`, { headers: guestHeaders })
+            .then((r) => (r.ok ? r.json() : null))
+            .catch(() => null);
+          if (confirmed?.status !== "PAID") {
+            setError("결제에 실패했습니다. 다시 시도해주세요.");
+            return;
+          }
+          paidOrder = confirmed;
+        }
       }
-      const paidOrder = await payRes.json();
+      orderAttempt.current.clear();
 
-      await fetch("/api/cart", { method: "DELETE" });
+      // 결제까지 끝났다. 장바구니 비우기가 실패해도 주문은 성공이므로 완료 화면은 보여 준다.
+      await fetch("/api/cart", { method: "DELETE" }).catch(() => {});
       setOrderResult({
         id: paidOrder.id,
         totalPrice: paidOrder.totalPrice,
@@ -177,6 +205,9 @@ export default function CartPage() {
         gradeCode: paidOrder.gradeCode ?? null,
       });
       loadCart();
+    } catch {
+      // 요청이 서버에 닿지 못했다(네트워크 끊김 등). 예전에는 아무 메시지 없이 버튼만 되돌아왔다.
+      setError("주문 요청을 보내지 못했습니다. 잠시 후 다시 시도해주세요.");
     } finally {
       setPlacing(false);
     }
