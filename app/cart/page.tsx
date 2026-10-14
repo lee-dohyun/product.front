@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { BlueprintCorners, Button, Field, Input, Table } from "@posselect/ui";
 import { readPurchaseError } from "@/lib/api-error";
+import { cartSummary } from "@/lib/cart-summary";
 import { fetchMemberGrade, gradeDiscountAmount, type MemberGrade } from "@/lib/grade-discount";
 import { createOrderAttempt, fetchWithRetry } from "@/lib/order-submit";
 
@@ -18,13 +19,17 @@ type CartItem = {
 
 type Cart = {
   items: CartItem[];
+  /** 상품 금액 합계. 배송비는 들어 있지 않다. */
   totalPrice: number;
+  /** 주문할 때 청구될 배송비(gateway#322). 이 필드가 없는 응답은 0원으로 본다. */
+  shippingFee?: number;
 };
 
 type OrderResult = {
   id: number;
   totalPrice: number;
   discountAmount: number;
+  shippingFee: number;
   gradeCode: string | null;
 };
 
@@ -202,6 +207,7 @@ export default function CartPage() {
         id: paidOrder.id,
         totalPrice: paidOrder.totalPrice,
         discountAmount: paidOrder.discountAmount ?? 0,
+        shippingFee: paidOrder.shippingFee ?? 0,
         gradeCode: paidOrder.gradeCode ?? null,
       });
       loadCart();
@@ -220,6 +226,7 @@ export default function CartPage() {
   const expectedDiscount = memberGrade
     ? gradeDiscountAmount(cart.totalPrice, memberGrade.discountRate)
     : 0;
+  const summary = cartSummary(cart, expectedDiscount);
 
   if (orderResult) {
     return (
@@ -230,6 +237,8 @@ export default function CartPage() {
           {orderResult.totalPrice.toLocaleString()}원
           {orderResult.discountAmount > 0 &&
             ` (회원 등급 할인 ${orderResult.discountAmount.toLocaleString()}원 적용)`}
+          {orderResult.shippingFee > 0 &&
+            ` (배송비 ${orderResult.shippingFee.toLocaleString()}원 포함)`}
         </p>
         <Link href="/" className="underline mt-4 inline-block">
           상품 목록으로
@@ -300,17 +309,22 @@ export default function CartPage() {
             </tbody>
           </Table>
           <div className="mt-6 text-right">
-            {expectedDiscount > 0 && memberGrade ? (
+            {summary.breakdown ? (
               <>
-                <p className="text-muted">상품 합계: {cart.totalPrice.toLocaleString()}원</p>
-                <p className="text-muted">
-                  {memberGrade.name} 등급 할인 ({memberGrade.discountRate}%): -
-                  {expectedDiscount.toLocaleString()}원
-                </p>
-                <h3>결제 예정 금액: {(cart.totalPrice - expectedDiscount).toLocaleString()}원</h3>
+                <p className="text-muted">상품 합계: {summary.itemTotal.toLocaleString()}원</p>
+                {summary.discount > 0 && memberGrade && (
+                  <p className="text-muted">
+                    {memberGrade.name} 등급 할인 ({memberGrade.discountRate}%): -
+                    {summary.discount.toLocaleString()}원
+                  </p>
+                )}
+                {summary.shippingFee > 0 && (
+                  <p className="text-muted">배송비: +{summary.shippingFee.toLocaleString()}원</p>
+                )}
+                <h3>결제 예정 금액: {summary.payable.toLocaleString()}원</h3>
               </>
             ) : (
-              <h3>합계: {cart.totalPrice.toLocaleString()}원</h3>
+              <h3>합계: {summary.itemTotal.toLocaleString()}원</h3>
             )}
           </div>
 
