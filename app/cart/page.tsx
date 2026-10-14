@@ -31,6 +31,7 @@ type OrderResult = {
   discountAmount: number;
   shippingFee: number;
   gradeCode: string | null;
+  guestToken: string | null;
 };
 
 type SavedAddress = {
@@ -48,6 +49,10 @@ export default function CartPage() {
   const [cart, setCart] = useState<Cart | null>(null);
   const [ordererName, setOrdererName] = useState("");
   const [ordererPhone, setOrdererPhone] = useState("");
+  // 비회원 주문의 연락 이메일(gateway#323) — 결제 완료 메일과 주문 조회 링크를 받을 곳.
+  const [guestEmail, setGuestEmail] = useState("");
+  // 로그인 여부. 주소록 조회가 성공하면 회원이다(비로그인은 401). 확인 전에는 null.
+  const [isMember, setIsMember] = useState<boolean | null>(null);
   const [shippingAddress, setShippingAddress] = useState("");
   const [structuredAddress, setStructuredAddress] = useState<{
     zipCode: string;
@@ -88,7 +93,10 @@ export default function CartPage() {
     // 로그인 상태면(도메인 공유 쿠키) 저장된 배송지 목록을 불러온다. 비로그인이면 401 -> 조용히 무시,
     // 기존처럼 직접 입력하는 폼만 보인다.
     fetch("/api/auth/addresses", { credentials: "include" })
-      .then((res) => (res.ok ? res.json() : []))
+      .then((res) => {
+        setIsMember(res.ok);
+        return res.ok ? res.json() : [];
+      })
       .then((addresses: SavedAddress[]) => {
         setSavedAddresses(addresses);
         const defaultAddress = addresses.find((a) => a.isDefault);
@@ -145,6 +153,7 @@ export default function CartPage() {
           address1: structuredAddress.address1,
           address2: structuredAddress.address2,
         }),
+        ...(isMember === false && { guestEmail: guestEmail.trim() }),
         items: cart.items.map((item) => ({
           productId: item.productId,
           variantId: item.variantId,
@@ -209,6 +218,8 @@ export default function CartPage() {
         discountAmount: paidOrder.discountAmount ?? 0,
         shippingFee: paidOrder.shippingFee ?? 0,
         gradeCode: paidOrder.gradeCode ?? null,
+        // 비회원만 받는다 — 완료 화면에서 다시 열 수 있는 조회 링크를 보여 준다(gateway#323).
+        guestToken: order.guestToken ?? null,
       });
       loadCart();
     } catch {
@@ -240,6 +251,14 @@ export default function CartPage() {
           {orderResult.shippingFee > 0 &&
             ` (배송비 ${orderResult.shippingFee.toLocaleString()}원 포함)`}
         </p>
+        {orderResult.guestToken && (
+          <p className="mt-4">
+            비회원 주문은 아래 링크로 다시 볼 수 있습니다(같은 링크를 주문 확인 메일로도 보냈습니다).{" "}
+            <Link href={`/guest-order?id=${orderResult.id}&token=${orderResult.guestToken}`} className="underline">
+              주문 조회하기
+            </Link>
+          </p>
+        )}
         <Link href="/" className="underline mt-4 inline-block">
           상품 목록으로
         </Link>
@@ -369,6 +388,16 @@ export default function CartPage() {
                   }}
                 />
               </Field>
+              {isMember === false && (
+                <Field label="주문 확인 이메일">
+                  <Input
+                    type="email"
+                    placeholder="주문 확인과 조회 링크를 받을 이메일"
+                    value={guestEmail}
+                    onChange={(e) => setGuestEmail(e.target.value)}
+                  />
+                </Field>
+              )}
               <Field label="배송 주소">
                 <Input
                   placeholder="배송 주소"
@@ -387,7 +416,8 @@ export default function CartPage() {
               block
               onClick={placeOrder}
               disabled={
-                placing || !ordererName || !ordererPhone || !shippingAddress
+                placing || !ordererName || !ordererPhone || !shippingAddress ||
+                (isMember === false && !guestEmail.trim())
               }
             >
               {placing ? "주문 처리 중..." : "주문하기"}
