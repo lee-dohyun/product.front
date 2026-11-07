@@ -1,8 +1,8 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { cache } from "react";
-import { fetchProductDetailOnServer } from "@/lib/product-server";
-import { buildProductMetadata } from "@/lib/product-seo";
+import { fetchProductDetailOnServer, fetchSaleSuspendedOnServer } from "@/lib/product-server";
+import { buildProductJsonLd, buildProductMetadata, serializeJsonLd } from "@/lib/product-seo";
 import ProductDetailClient from "./ProductDetailClient";
 
 /**
@@ -35,5 +35,16 @@ export default async function ProductDetailPage({ params }: PageProps) {
   const { id } = await params;
   const result = await loadProduct(id);
   if (result.status === "not-found") notFound();
-  return <ProductDetailClient productId={id} initialProduct={result.status === "ok" ? result.data : null} />;
+  if (result.status !== "ok") return <ProductDetailClient productId={id} initialProduct={null} />;
+  // 구조화 데이터(gateway#332) - 서버가 상품을 읽었을 때만 낸다.
+  const saleSuspended = await fetchSaleSuspendedOnServer(id);
+  return (
+    <>
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: serializeJsonLd(buildProductJsonLd(result.data, saleSuspended)) }}
+      />
+      <ProductDetailClient productId={id} initialProduct={result.data} />
+    </>
+  );
 }

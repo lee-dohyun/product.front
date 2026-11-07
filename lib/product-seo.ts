@@ -63,3 +63,42 @@ export function buildProductMetadata(product: ProductDetail): Metadata {
     },
   };
 }
+
+/**
+ * 상품 상세 Product JSON-LD(gateway#332).
+ *
+ * 넣지 않은 것: aggregateRating·review - product-api 의 ratingAvg·reviewCount 는 데모 시드 값이라
+ * 실제 구매 후기에서 나온 수치가 아니다(검색엔진 정책상 실제 후기만 표시해야 한다). gtin·mpn 은 데이터가 없다.
+ * availability 는 서버 캐시 값(최대 revalidate 주기만큼 늦음)이다.
+ */
+export function buildProductJsonLd(product: ProductDetail, saleSuspended: boolean | null): Record<string, unknown> {
+  const images = [...product.images].sort((a, b) => a.sortOrder - b.sortOrder).map((i) => i.imageUrl);
+  const purchasable = product.variants.some((v) => v.active && v.stockQuantity > 0);
+  const inStock = saleSuspended !== true && (product.variants.length > 0 ? purchasable : product.stockQuantity > 0);
+  const url = productUrl(product.id);
+  return {
+    "@context": "https://schema.org",
+    "@type": "Product",
+    "@id": url,
+    name: product.name,
+    url,
+    ...(images.length > 0 ? { image: images } : {}),
+    ...(product.description ? { description: product.description } : {}),
+    sku: String(product.id),
+    category: product.category.name,
+    ...(product.brand ? { brand: { "@type": "Brand", name: product.brand } } : {}),
+    offers: {
+      "@type": "Offer",
+      url,
+      priceCurrency: "KRW",
+      price: Math.round(product.price),
+      availability: inStock ? "https://schema.org/InStock" : "https://schema.org/OutOfStock",
+      itemCondition: "https://schema.org/NewCondition",
+    },
+  };
+}
+
+/** `<script type="application/ld+json">` 안에 넣을 문자열. `</script>` 로 태그를 닫는 주입을 막는다. */
+export function serializeJsonLd(data: unknown): string {
+  return JSON.stringify(data).replace(/</g, "\\u003c");
+}
