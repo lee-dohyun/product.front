@@ -23,6 +23,8 @@ export type ProductDetail = {
   images: { id: number; imageUrl: string; sortOrder: number }[];
   options: Option[];
   variants: Variant[];
+  /** 없거나 null 일 수 있다(구버전 응답). 구조화 데이터에만 쓴다. */
+  brand?: string | null;
 };
 
 export type ServerResult<T> =
@@ -81,4 +83,46 @@ export async function fetchFirstProductPageOnServer(
   } catch {
     return { status: "error" };
   }
+}
+
+/**
+ * 판매 중단 여부(product.api#100) - 구조화 데이터의 availability 에만 쓴다(gateway#332).
+ * 조회에 실패하면 null(모름). 화면의 판매 중단 표시는 지금처럼 client 가 읽는다.
+ */
+export async function fetchSaleSuspendedOnServer(id: string, fetcher: typeof fetch = fetch): Promise<boolean | null> {
+  if (!/^\d{1,18}$/.test(id)) return null;
+  try {
+    const res = await serverFetch(`/api/products/${id}/policy`, fetcher);
+    if (!res.ok) return null;
+    const body = (await res.json()) as { saleSuspended?: unknown };
+    return body.saleSuspended === true;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * sitemap 용 전체 상품 id. size 는 product-api 상한(MAX_PAGE_SIZE=100)에 맞추고 page 를 명시한다.
+ * 한 쪽이라도 실패하면 error - 일부만 담은 sitemap 은 나머지 상품이 사라진 것으로 읽힌다.
+ */
+export const SITEMAP_PAGE_SIZE = 100;
+const SITEMAP_MAX_PAGES = 400; // 4만 개 - sitemap 한 파일 상한(5만 URL) 아래.
+
+export async function fetchAllProductIdsOnServer(fetcher: typeof fetch = fetch): Promise<ServerResult<number[]>> {
+  const ids: number[] = [];
+  try {
+    for (let page = 0; page < SITEMAP_MAX_PAGES; page++) {
+      const res = await serverFetch(`/api/products?page=${page}&size=${SITEMAP_PAGE_SIZE}`, fetcher);
+      if (!res.ok) return { status: "error" };
+      const items = (await res.json()) as { id: number }[];
+      ids.push(...items.map((p) => p.id));
+      const header = res.headers.get("X-Total-Count");
+      const total = header !== null && /^\d+$/.test(header) ? Number(header) : null;
+      // X-Total-Count 가 없으면(page 를 모르는 구버전 API) 한 번에 전부 준 것으로 본다.
+      if (total === null || items.length < SITEMAP_PAGE_SIZE || ids.length >= total) break;
+    }
+  } catch {
+    return { status: "error" };
+  }
+  return { status: "ok", data: [...new Set(ids)] };
 }

@@ -1,5 +1,11 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { fetchFirstProductPageOnServer, fetchProductDetailOnServer, serverApiBase } from "./product-server";
+import {
+  fetchAllProductIdsOnServer,
+  fetchFirstProductPageOnServer,
+  fetchProductDetailOnServer,
+  fetchSaleSuspendedOnServer,
+  serverApiBase,
+} from "./product-server";
 
 const json = (body: unknown, status = 200, headers: Record<string, string> = {}) =>
   new Response(JSON.stringify(body), { status, headers });
@@ -57,5 +63,39 @@ describe("fetchFirstProductPageOnServer", () => {
 
   it("실패는 error", async () => {
     expect(await fetchFirstProductPageOnServer({ category: null, q: null }, (async () => json([], 500)) as unknown as typeof fetch)).toEqual({ status: "error" });
+  });
+});
+
+describe("fetchAllProductIdsOnServer", () => {
+  it("X-Total-Count 까지 page 를 넘기며 size=100 으로 모은다", async () => {
+    const pages = [
+      Array.from({ length: 100 }, (_, i) => ({ id: i + 1 })),
+      [{ id: 101 }, { id: 102 }],
+    ];
+    const fetcher = vi.fn<(url: string) => Promise<Response>>(async (url) => {
+      const page = Number(new URL(url).searchParams.get("page"));
+      return json(pages[page] ?? [], 200, { "X-Total-Count": "102" });
+    });
+    const result = await fetchAllProductIdsOnServer(fetcher as unknown as typeof fetch);
+    expect(result.status).toBe("ok");
+    if (result.status === "ok") expect(result.data).toHaveLength(102);
+    expect(fetcher).toHaveBeenCalledTimes(2);
+    expect(new URL(fetcher.mock.calls[0][0]).searchParams.get("size")).toBe("100");
+  });
+
+  it("한 쪽이라도 실패하면 error", async () => {
+    const fetcher = vi.fn<(url: string) => Promise<Response>>(async (url) =>
+      new URL(url).searchParams.get("page") === "0"
+        ? json(Array.from({ length: 100 }, (_, i) => ({ id: i })), 200, { "X-Total-Count": "150" })
+        : json([], 500),
+    );
+    expect(await fetchAllProductIdsOnServer(fetcher as unknown as typeof fetch)).toEqual({ status: "error" });
+  });
+});
+
+describe("fetchSaleSuspendedOnServer", () => {
+  it("saleSuspended 를 읽고, 실패하면 null", async () => {
+    expect(await fetchSaleSuspendedOnServer("7", (async () => json({ saleSuspended: true })) as unknown as typeof fetch)).toBe(true);
+    expect(await fetchSaleSuspendedOnServer("7", (async () => json({}, 500)) as unknown as typeof fetch)).toBeNull();
   });
 });
